@@ -1,6 +1,3 @@
-
-from tkinter import N
-from django.db.models import Q
 from django.shortcuts import render
 from django.http import JsonResponse
 from .models import Product
@@ -13,10 +10,10 @@ def insertProduct(request):
 
         try:
             product = Product.objects.create(
-            code= request.POST['code'],
-            name= request.POST['name'],
-            price=int(request.POST['price']),
-            inventory=int(request.POST['inventory'])
+                code= request.POST['code'],
+                name= request.POST['name'],
+                price=int(request.POST['price']),
+                inventory=int(request.POST['inventory'])
             )
 
             return JsonResponse({
