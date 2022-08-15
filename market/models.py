@@ -96,7 +96,7 @@ class Order(models.Model):
         verbose_name = 'سفارش'
         verbose_name_plural = 'سفارش'
 
-    customer = models.ForeignKey('Customer', on_delete=models.CASCADE, verbose_name='مشتری')
+    customer = models.ForeignKey('Customer', on_delete=models.CASCADE, verbose_name='مشتری', related_name='orders')
     order_time = models.DateTimeField('زمان ثبت سفارش', auto_now_add=True, blank=True)
     total_price = models.PositiveIntegerField('مجموع پرداختی', default=0, null=True, blank=True)
 
@@ -117,60 +117,62 @@ class Order(models.Model):
     @staticmethod
     def initiate(customer):
         try:
-            assert Order.objects.filter(customer=customer, status=1).count() == 0
+            assert Order.objects.filter(customer=customer, status=1).count() == 0, 'You have an order in progress.'
             order = Order.objects.create(customer=customer, status=1)
             order.save()
             return order
-        except:
-            raise ValidationError('This customer has an order in progress.')
+        except AssertionError as msg:
+            raise AssertionError(msg)
 
     def add_product(self, product, amount):
         try:
-            assert amount > 0
-            assert product.inventory >= amount
-            assert self.status == 1
+            assert amount > 0, 'Amount msut be a positive integer'
+            assert product.inventory >= amount, 'Not enough inventory.'
+            assert self.status == 1, 'Your shopping cart is empty.'
 
             if self.rows.filter(product=product).count() == 0:
                 OrderRow.objects.create(product=product, amount=amount, order_id=self.id).save()
                 self.total_price += amount * product.price
             else:
                 row = self.rows.get(product=product)
-                assert row.amount + amount <= product.inventory
+                assert row.amount + amount <= product.inventory, 'Not enough of this product available.'
                 row.amount += amount
                 row.save()
                 self.total_price += amount * product.price
 
             self.save()
 
-        except:
-            raise ValidationError('Error in add_product')
+        except AssertionError as msg:
+            raise AssertionError(msg)
+           
 
     def remove_product(self, product, amount=None):
         try:
-            assert amount >= 0 or amount == None
             row = self.rows.get(product=product)
 
             if amount is not None:
-                assert row.amount >= amount
+                assert amount > 0, 'Amount must be positive integer.' 
+                assert row.amount >= amount, 'This number of products does not exist in your shopping cart.'
                 row.amount -= amount
+                self.total_price -= amount * product.price
                 row.save()
             else:
+                self.total_price -= row.amount * product.price
                 row.delete()
 
-            self.total_price -= amount * product.price
             self.save()
-        except:
-            raise ValidationError('Error in remove_product')
+        except AssertionError as msg:
+            raise AssertionError(msg)
 
     def submit(self):
         try:
             
-            assert self.status == 1
+            assert self.status == 1, 'You cannot submit this order because of status.'
             rows = self.rows.all()
         
             for row in rows:
-                assert row.product.inventory >= row.amount
-            assert self.customer.balance >= self.total_price
+                assert row.product.inventory >= row.amount, 'This number of products does not exist in your shopping cart.'
+            assert self.customer.balance >= self.total_price, 'Your account balance is not enough.'
             for row in rows:
                 row.product.decrease_inventory(row.amount)
                 row.save()
@@ -179,12 +181,12 @@ class Order(models.Model):
 
             self.status = 2
             self.save()
-        except:
-            raise ValidationError('Error in submit')
+        except AssertionError as msg:
+            raise AssertionError(msg)
 
     def cancel(self):
         try:
-            assert self.status == 2
+            assert self.status == 2, 'The order must be submitted.'
             self.customer.deposit(self.total_price)
             self.customer.save()
 
@@ -195,14 +197,14 @@ class Order(models.Model):
             self.total_price = 0
             self.status = 3
             self.save()
-        except:
-            raise ValidationError('Error in cenceling')
+        except AssertionError as msg:
+            raise AssertionError(msg)
 
     def send(self):
         try:
-            assert self.status == 2
+            assert self.status == 2, 'The order must be submitted.'
 
             self.status = 4
             self.save()
-        except:
-            raise ValidationError('Error in sendig')
+        except AssertionError as msg:
+            raise AssertionError(msg)

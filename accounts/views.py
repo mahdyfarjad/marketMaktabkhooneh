@@ -1,11 +1,12 @@
 from django.db.models import Q
-from django.shortcuts import render
 from django.http import JsonResponse
 from django.contrib.auth.models import User
 from market.models import Customer
 from django.contrib.auth import authenticate
 from django.contrib.auth import login as auth_login
 from django.contrib.auth import logout as auth_logout
+from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ObjectDoesNotExist
 
 # Create your views here.
 
@@ -83,6 +84,7 @@ def customerList(request):
                 'customers': data,
             }, status=200)
 
+@login_required
 def customerInfo(request, id):
     if request.method == 'GET':
         try:
@@ -102,6 +104,7 @@ def customerInfo(request, id):
                 'message': 'Customer Not Found.'
             }, status=404)
 
+@login_required
 def customerEdit(request, id):
     if request.method == 'POST':
         try:
@@ -156,34 +159,34 @@ def login(request):
                 'message': 'Username or Password is incorrect.'
             }, status=404)
 
+@login_required
 def logout(request):
     if request.method == 'POST':
-        if request.user.is_authenticated:
-            auth_logout(request)
-            return JsonResponse({
-                'message': 'You are logged out successfully.'
-            }, status=200)
-        
+        auth_logout(request)
         return JsonResponse({
-            'message': 'You are not logged in.'
-        }, status=403)
+            'message': 'You are logged out successfully.'
+        }, status=200)
 
+@login_required
 def profile(request):
     if request.method == 'GET':
-        if request.user.is_authenticated:
-            customer = Customer.objects.get(user=request.user)
+        customer = Customer.objects.get(user=request.user)
 
-            return JsonResponse({
-                'id': customer.id,
-                'username': customer.user.username,
-                'first_name': customer.user.first_name,
-                'last_name': customer.user.last_name,
-                'email': customer.user.email,
-                'phone': customer.phone,
-                'address': customer.address,
-                'balance': customer.balance,
-            }, status=200)
-        
         return JsonResponse({
-            'message': 'You are not logged in.'
-        }, status=403)
+            'id': customer.id,
+            'username': customer.user.username,
+            'first_name': customer.user.first_name,
+            'last_name': customer.user.last_name,
+            'email': customer.user.email,
+            'phone': customer.phone,
+            'address': customer.address,
+            'balance': customer.balance,
+        }, status=200)
+
+
+
+# this function for login_required decorator
+def loginE(request):
+    return JsonResponse({
+        'message': 'You are not logged in.'
+    }, status=403)
